@@ -1,0 +1,44 @@
+{
+  "name": "ipageloader",
+  "version": "0.0.1",
+  "description": "",
+  "main": "dist/index.js",
+  "bin": {
+    "page-loader": "dist/bin/page-loader.js"
+  },
+  "scripts": {
+    "babel-node": "babel-node",
+    "build": "NODE_ENV=production babel src --out-dir dist --source-maps inline",
+    "eslint": "eslint",
+    "jest": "DEBUG=page-loader jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/felixcatto/project-lvl3-s202.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "homepage": "https://github.com/felixcatto/project-lvl3-s202#readme",
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.0",
+    "babel-eslint": "^8.2.2",
+    "babel-preset-env": "^1.6.1",
+    "eslint": "^4.19.0",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-import": "^2.9.0",
+    "jest": "^22.4.2",
+    "nock": "^9.2.3",
+    "rimraf": "^2.6.2"
+  },
+  "dependencies": {
+    "axios": "^0.18.0",
+    "cheerio": "^1.0.0-rc.2",
+    "commander": "^2.15.0",
+    "debug": "^3.1.0",
+    "js-beautify": "^1.7.5",
+    "lodash": "^4.17.5",
+    "mkdirp": "^0.5.1",
+    "mz": "^2.7.0"
+  }
+}
