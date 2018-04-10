@@ -12,8 +12,7 @@ build:
 
 
 lint:
-	npm run eslint --silent src
-	npm run eslint --silent __tests__
+	npm run eslint --silent .
 
 
 publish: build

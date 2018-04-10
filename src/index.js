@@ -1,5 +1,4 @@
 import URL from 'url';
-import os from 'os';
 import path from 'path';
 import util from 'util';
 import fs from 'mz/fs';
@@ -7,8 +6,6 @@ import axios from 'axios';
 import beautify from 'js-beautify';
 import mkdirpCB from 'mkdirp';
 
-
-const defaultOutputDir = `${os.tmpdir()}/loader`;
 
 const mkdirp = util.promisify(mkdirpCB);
 
@@ -33,7 +30,7 @@ const getIndexFilename = (url) => {
   return `${newUrl}.html`;
 };
 
-const loadPage = (outputDir = defaultOutputDir, url) => {
+const loadPage = (outputDir, url) => {
   const filename = getIndexFilename(url);
   const filepath = path.resolve(outputDir, filename);
   let indexContent;
@@ -43,14 +40,14 @@ const loadPage = (outputDir = defaultOutputDir, url) => {
     })
     .then(() => mkdirp(outputDir))
     .then(() => fs.writeFile(filepath, indexContent))
-    .then(() => {
-      console.log(`${filename} have created in ${outputDir}`);
-    });
+    .then(() => ({
+      createdFilename: filename,
+      outputDir,
+    }));
 };
 
 export {
   loadPage,
-  defaultOutputDir,
   getIndexFilename,
   beautifyHtml,
 };
