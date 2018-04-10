@@ -19,9 +19,9 @@ publish: build
 	npm publish
 
 
-test:
+test_once:
 	npm run jest --silent
 
 
-testw:
+test:
 	npm run jest --silent -- --watch
