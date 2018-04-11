@@ -7,10 +7,12 @@ import cheerio from 'cheerio';
 import { uniq } from 'lodash';
 import beautify from 'js-beautify';
 import mkdirpCB from 'mkdirp';
+import debug from 'debug';
 import fileTypes from './fileTypes';
 
 
 const mkdirp = util.promisify(mkdirpCB);
+const log = debug('page-loader');
 
 const resolvePromise = promise => promise
   .then(response => ({ isSuccess: true, response }))
@@ -79,6 +81,7 @@ const changeAssetLinks = ($, relativeAssetsDir, assetLinks) => {
 };
 
 const loadPage = (outputDir, url) => {
+  log('Loading started');
   const { protocol, host, pathname } = URL.parse(url);
   const baseUrl = `${protocol}//${host}`;
   const filename = getIndexFilename(url);
@@ -89,6 +92,7 @@ const loadPage = (outputDir, url) => {
   let assets;
   return axios.get(url)
     .then(({ data: indexHtml }) => {
+      log('index url loaded');
       const $ = cheerio.load(indexHtml, { decodeEntities: false });
       const assetsLinks = getAssetsLinksFromHTML($, host);
       changeAssetLinks($, relativeAssetsDir, assetsLinks);
@@ -110,12 +114,14 @@ const loadPage = (outputDir, url) => {
         .filter(el => !el.isSuccess)
         .forEach(({ response: e }) => {
           const { path: assetPath } = URL.parse(e.config.url);
+          log(`${e.status}: ${assetPath}`);
           assets = assets.filter(el => el.link !== assetPath);
         });
       loadedAssets
         .filter(el => el.isSuccess)
         .forEach(({ response: loadedAsset }) => {
           const { path: assetPath } = URL.parse(loadedAsset.config.url);
+          log(`${loadedAsset.status}: ${assetPath}`);
           const asset = assets.find(el => el.link === assetPath);
           asset.data = loadedAsset.data;
         });
@@ -124,16 +130,20 @@ const loadPage = (outputDir, url) => {
     .then(() => mkdirp(assetsDir))
     .then(() => fs.writeFile(filepath, indexContent))
     .then(() => {
+      log('Writing assets started');
       const writeAssetsToFiles = assets.map((asset) => {
         const assetFilepath = getAssetFilepath(outputDir, url, asset.link);
         return asset.file.write(assetFilepath, asset.data);
       });
       return Promise.all(writeAssetsToFiles);
     })
-    .then(() => ({
-      createdFilename: filename,
-      outputDir,
-    }));
+    .then(() => {
+      log('Loading finished\n');
+      return {
+        createdFilename: filename,
+        outputDir,
+      };
+    });
 };
 
 export {
