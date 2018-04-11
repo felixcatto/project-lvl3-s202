@@ -29,15 +29,6 @@ const paths = {
   imgFile: path.resolve(__dirname, '__fixtures__/scared.png'),
 };
 
-const errorObj = {
-  config: {
-    url,
-  },
-  response: {
-    status: 404,
-  },
-};
-
 
 test('index page have loaded with right content', async () => {
   const outputDir = fs.mkdtempSync(tmpOutputDir);
@@ -57,32 +48,60 @@ test('index page have loaded with right content', async () => {
 });
 
 
-test('all resources are loaded with right content', async () => {
+test('css file loaded', async () => {
   const outputDir = fs.mkdtempSync(tmpOutputDir);
   const rawHtmlFile = await fs.readFile(paths.html, 'utf8');
   const cssFile = await fs.readFile(paths.cssFile, 'utf8');
-  const jsFile = await fs.readFile(paths.jsFile, 'utf8');
-  const imgFile = await fs.readFile(paths.imgFile);
+  const cssFilePath = '/assets/index.css';
   nock(baseUrl)
     .get(pathname)
     .reply(200, rawHtmlFile)
-    .get('/assets/index.css')
-    .reply(200, cssFile)
-    .get('/js/index.jsi')
-    .reply(200, jsFile)
-    .get('/assets/img/scared.png')
-    .reply(200, imgFile)
-    .get('/assets/img/not-exists.jpg')
-    .reply(404, errorObj);
+    .get(cssFilePath)
+    .reply(200, cssFile);
   await loadPage(outputDir, url);
 
-  const links = ['/assets/index.css', 'assets/img/scared.png', '/js/index.jsi'];
-  const loadedAssetPaths = links.map(link => getAssetFilepath(outputDir, url, link));
-  const loadedAssetFiles = loadedAssetPaths.map(assetPath => (assetPath.endsWith('.png')
-    ? fs.readFileSync(assetPath)
-    : fs.readFileSync(assetPath, 'utf8')
-  ));
-  expect(loadedAssetFiles).toEqual([cssFile, imgFile, jsFile]);
+  const loadedAssetPath = getAssetFilepath(outputDir, url, cssFilePath);
+  const loadedAssetFile = await fs.readFile(loadedAssetPath, 'utf8');
+
+  expect(loadedAssetFile).toEqual(cssFile);
+});
+
+
+test('js file loaded', async () => {
+  const outputDir = fs.mkdtempSync(tmpOutputDir);
+  const rawHtmlFile = await fs.readFile(paths.html, 'utf8');
+  const jsFile = await fs.readFile(paths.jsFile, 'utf8');
+  const jsFilePath = '/js/index.jsi';
+  nock(baseUrl)
+    .get(pathname)
+    .reply(200, rawHtmlFile)
+    .get(jsFilePath)
+    .reply(200, jsFile);
+  await loadPage(outputDir, url);
+
+  const loadedAssetPath = getAssetFilepath(outputDir, url, jsFilePath);
+  const loadedAssetFile = await fs.readFile(loadedAssetPath, 'utf8');
+
+  expect(loadedAssetFile).toEqual(jsFile);
+});
+
+
+test('img file loaded', async () => {
+  const outputDir = fs.mkdtempSync(tmpOutputDir);
+  const rawHtmlFile = await fs.readFile(paths.html, 'utf8');
+  const imgFile = await fs.readFile(paths.imgFile);
+  const imgFilePath = '/assets/img/scared.png';
+  nock(baseUrl)
+    .get(pathname)
+    .reply(200, rawHtmlFile)
+    .get(imgFilePath)
+    .reply(200, imgFile);
+  await loadPage(outputDir, url);
+
+  const loadedAssetPath = getAssetFilepath(outputDir, url, imgFilePath);
+  const loadedAssetFile = await fs.readFile(loadedAssetPath);
+
+  expect(loadedAssetFile).toEqual(imgFile);
 });
 
 

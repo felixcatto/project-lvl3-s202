@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-import os from 'os';
 import program from 'commander';
 import { loadPage } from '../';
 import { version } from '../../package.json';
 
 
-const defaultOutputDir = `${os.tmpdir()}/loader`;
+const defaultOutputDir = process.cwd();
 
 program
   .version(version)
