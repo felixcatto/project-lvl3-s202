@@ -12,7 +12,11 @@ program
   .arguments('<url>')
   .option('-o, --output <directory>', 'Output directory', defaultOutputDir)
   .action(async (url) => {
-    const { createdFilename, outputDir } = await loadPage(program.output, url);
-    console.log(`${createdFilename} have created in ${outputDir}`);
+    try {
+      const { createdFilename, outputDir } = await loadPage(program.output, url);
+      console.log(`${createdFilename} have created in ${outputDir}`);
+    } catch (e) {
+      process.exit(1);
+    }
   })
   .parse(process.argv);

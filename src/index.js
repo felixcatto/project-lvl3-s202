@@ -1,17 +1,14 @@
 import URL from 'url';
 import path from 'path';
-import util from 'util';
 import fs from 'mz/fs';
 import axios from 'axios';
 import cheerio from 'cheerio';
 import { uniq } from 'lodash';
 import beautify from 'js-beautify';
-import mkdirpCB from 'mkdirp';
 import debug from 'debug';
 import fileTypes from './fileTypes';
 
 
-const mkdirp = util.promisify(mkdirpCB);
 const log = debug('page-loader');
 
 const resolvePromise = promise => promise
@@ -60,7 +57,10 @@ const getAssetsLinksFromHTML = ($, host) => {
     .map(el => $(el).prop('src') || $(el).prop('href'))
     .filter((assetUrl) => {
       if (!assetUrl) return false;
-      const { host: assetHost } = URL.parse(assetUrl);
+
+      const { host: assetHost, path: assetPath } = URL.parse(assetUrl);
+      if (assetPath.startsWith('//')) return false;
+
       return assetHost === null || assetHost === host;
     })
     .map((assetUrl) => {
@@ -90,6 +90,7 @@ const loadPage = (outputDir, url) => {
   const assetsDir = getAssetsDir(outputDir, host, pathname);
   let indexContent;
   let assets;
+
   return axios.get(url)
     .then(({ data: indexHtml }) => {
       log('index url loaded');
@@ -115,6 +116,7 @@ const loadPage = (outputDir, url) => {
         .forEach(({ response: e }) => {
           const { path: assetPath } = URL.parse(e.config.url);
           log(`${e.status}: ${assetPath}`);
+          console.error(`${e.status}: ${e.config.url}`);
           assets = assets.filter(el => el.link !== assetPath);
         });
       loadedAssets
@@ -126,9 +128,13 @@ const loadPage = (outputDir, url) => {
           asset.data = loadedAsset.data;
         });
     })
-    .then(() => mkdirp(outputDir))
-    .then(() => mkdirp(assetsDir))
     .then(() => fs.writeFile(filepath, indexContent))
+    .then(() => fs.mkdir(assetsDir))
+    .catch((e) => {
+      if (e.code === 'EEXIST') return;
+      console.error(e.message);
+      throw new Error(e.message);
+    })
     .then(() => {
       log('Writing assets started');
       const writeAssetsToFiles = assets.map((asset) => {

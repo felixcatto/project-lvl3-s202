@@ -110,3 +110,14 @@ test('asset url is correct', () => {
   const processed = getAssetFilepath(tmpOutputDir, 'https://ru.hexlet.io/courses', '/assets/application.css');
   expect(processed).toBe(result);
 });
+
+
+test('throws error if index not found', () => {
+  const outputDir = fs.mkdtempSync(tmpOutputDir);
+  nock(baseUrl)
+    .get(pathname)
+    .reply(404, '');
+  return expect(loadPage(outputDir, url))
+    .rejects
+    .toMatchObject({ message: 'Request failed with status code 404' });
+});
