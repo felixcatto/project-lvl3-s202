@@ -6,6 +6,7 @@ import cheerio from 'cheerio';
 import { uniq } from 'lodash';
 import beautify from 'js-beautify';
 import debug from 'debug';
+import Listr from 'listr';
 import fileTypes from './fileTypes';
 
 
@@ -87,28 +88,35 @@ const loadPage = (outputDir, url) => {
   let indexContent;
   let assets;
 
-  return axios.get(url)
+  const loadInitialUrl = initialUrl => axios.get(initialUrl)
     .then(({ data: indexHtml }) => {
-      log(`Loaded ${url}`);
+      log(`Loaded ${initialUrl}`);
       const $ = cheerio.load(indexHtml, { decodeEntities: false });
       const assetsLinks = getAssetsLinksFromHTML($, host);
       changeAssetLinks($, relativeAssetsDir, assetsLinks);
       indexContent = beautifyHtml($.html());
-
       assets = assetsLinks
         .map((link) => {
           const { pathname: assetPathname } = URL.parse(link);
           const file = fileTypes.find(fileType => fileType.check(assetPathname));
           return { link, file };
         });
+    });
 
+  const loadInitialUrlTask = new Listr([{
+    title: `Loading page ${url}`,
+    task: () => loadInitialUrl(url),
+  }]);
+
+  return loadInitialUrlTask.run()
+    .then(() => {
       const loadAsset = asset => axios
         .get(`${baseUrl}${asset.link}`, asset.file.axiosConfig)
         .then((loadedAsset) => {
           const { path: assetPath } = URL.parse(loadedAsset.config.url);
           log(`${loadedAsset.status}: ${assetPath}`);
-          const asset = assets.find(el => el.link === assetPath);
-          asset.data = loadedAsset.data;
+          const iasset = assets.find(el => el.link === assetPath);
+          iasset.data = loadedAsset.data;
         })
         .catch((e) => {
           const { path: assetPath } = URL.parse(e.config.url);
@@ -116,12 +124,18 @@ const loadPage = (outputDir, url) => {
           console.error(`${e.status}: ${e.config.url}`);
           assets = assets.filter(el => el.link !== assetPath);
         });
-      return Promise.all(assets.map(loadAsset));
+
+      const loadAssetsTask = new Listr(assets.map(asset => ({
+        title: `loading asset ${asset.link}`,
+        task: () => loadAsset(asset),
+      })), { concurrent: true });
+
+      return loadAssetsTask.run();
     })
     .then(() => fs.writeFile(filepath, indexContent))
     .then(() => fs.mkdir(assetsDir))
     .catch((e) => {
-      if (e.code === 'EEXIST') return;
+      if (e.code === 'EEXIST') return '';
       console.error(e.message);
       return Promise.reject(e);
     })
