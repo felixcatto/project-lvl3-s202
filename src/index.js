@@ -11,10 +11,6 @@ import fileTypes from './fileTypes';
 
 const log = debug('page-loader');
 
-const resolvePromise = promise => promise
-  .then(response => ({ isSuccess: true, response }))
-  .catch(response => ({ isSuccess: false, response }));
-
 const beautifyHtml = html => beautify.html(html, {
   preserve_newlines: false,
   unformatted: [],
@@ -81,7 +77,7 @@ const changeAssetLinks = ($, relativeAssetsDir, assetLinks) => {
 };
 
 const loadPage = (outputDir, url) => {
-  log('Loading started');
+  log(`Start loading ${url}`);
   const { protocol, host, pathname } = URL.parse(url);
   const baseUrl = `${protocol}//${host}`;
   const filename = getIndexFilename(url);
@@ -93,7 +89,7 @@ const loadPage = (outputDir, url) => {
 
   return axios.get(url)
     .then(({ data: indexHtml }) => {
-      log('index url loaded');
+      log(`Loaded ${url}`);
       const $ = cheerio.load(indexHtml, { decodeEntities: false });
       const assetsLinks = getAssetsLinksFromHTML($, host);
       changeAssetLinks($, relativeAssetsDir, assetsLinks);
@@ -105,35 +101,29 @@ const loadPage = (outputDir, url) => {
           const file = fileTypes.find(fileType => fileType.check(assetPathname));
           return { link, file };
         });
-      const loadAssets = assets
-        .map(asset => axios.get(`${baseUrl}${asset.link}`, asset.file.axiosConfig))
-        .map(resolvePromise);
-      return Promise.all(loadAssets);
-    })
-    .then((loadedAssets) => {
-      loadedAssets
-        .filter(el => !el.isSuccess)
-        .forEach(({ response: e }) => {
+
+      const loadAsset = asset => axios
+        .get(`${baseUrl}${asset.link}`, asset.file.axiosConfig)
+        .then((loadedAsset) => {
+          const { path: assetPath } = URL.parse(loadedAsset.config.url);
+          log(`${loadedAsset.status}: ${assetPath}`);
+          const asset = assets.find(el => el.link === assetPath);
+          asset.data = loadedAsset.data;
+        })
+        .catch((e) => {
           const { path: assetPath } = URL.parse(e.config.url);
           log(`${e.status}: ${assetPath}`);
           console.error(`${e.status}: ${e.config.url}`);
           assets = assets.filter(el => el.link !== assetPath);
         });
-      loadedAssets
-        .filter(el => el.isSuccess)
-        .forEach(({ response: loadedAsset }) => {
-          const { path: assetPath } = URL.parse(loadedAsset.config.url);
-          log(`${loadedAsset.status}: ${assetPath}`);
-          const asset = assets.find(el => el.link === assetPath);
-          asset.data = loadedAsset.data;
-        });
+      return Promise.all(assets.map(loadAsset));
     })
     .then(() => fs.writeFile(filepath, indexContent))
     .then(() => fs.mkdir(assetsDir))
     .catch((e) => {
       if (e.code === 'EEXIST') return;
       console.error(e.message);
-      throw new Error(e.message);
+      return Promise.reject(e);
     })
     .then(() => {
       log('Writing assets started');
